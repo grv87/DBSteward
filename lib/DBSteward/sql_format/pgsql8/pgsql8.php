@@ -1444,6 +1444,23 @@ SLEEP (SECONDS=60);
     $node_role->addChild('replication', $user);
     $node_role->addChild('readonly', $user);
 
+    // extract enums
+    $sql = "SELECT n.nspname, t.typname, t.typowner,
+                   td.description as type_description,
+                   ( SELECT array_agg(ce.enumlabel ORDER BY ce.enumsortorder)
+                     FROM pg_catalog.pg_enum ce
+                     WHERE ce.enumtypid = t.oid ) AS enum_items
+            FROM pg_catalog.pg_type t
+            LEFT JOIN pg_catalog.pg_namespace n ON (n.oid = t.typnamespace)
+            LEFT JOIN pg_catalog.pg_description td ON (td.objoid = t.oid AND td.classoid = t.tableoid AND td.objsubid = 0)
+            WHERE n.nspname NOT IN ('information_schema', 'pg_catalog')
+            AND t.typtype = 'e'
+            ORDER BY nspname, typname;";
+    $rs = pgsql8_db::query($sql);
+    $sequence_cols = array();
+    while (($row = pg_fetch_assoc($rs)) !== FALSE) {
+
+
     // find all tables in the schema that aren't in the built-in schemas
     $sql = "SELECT t.schemaname, t.tablename, t.tableowner, t.tablespace,
                    sd.description as schema_description, td.description as table_description,
